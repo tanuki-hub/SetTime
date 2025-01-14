@@ -174,8 +174,10 @@
 
     document.addEventListener("touchend", (event) => {
       const touchEndX = event.changedTouches[0].clientX;
-      if (Math.abs(touchEndX - touchStartX) > 50) {
-        resetTimer(); // Swipe to reset
+      const swipeDistance = touchEndX - touchStartX;
+
+      if (Math.abs(swipeDistance) > 50) {
+        resetTimer(); // Right or left swipe to reset
       } else {
         toggleTimer(); // Tap to start/stop
       }
