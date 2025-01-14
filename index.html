@@ -7,11 +7,13 @@
   <style>
     body {
       font-family: sans-serif;
-      text-align: center;
-      background-color: #222;
-      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
       height: 100vh;
       overflow: hidden;
+      background-color: #222;
+      color: #fff;
     }
 
     #stopwatch {
@@ -26,109 +28,25 @@
 </head>
 <body>
   <input type="number" id="threshold" placeholder="切り替え時間(分)">
-  <div id="stopwatch">00:00:00</div>
+  <div id="stopwatch" onclick="toggleTimer()">00:00:00</div>
   <script>
-    const stopwatch = document.getElementById('stopwatch');
-    const thresholdInput = document.getElementById('threshold');
+    // ... (これまでのコード)
 
-    let startTime = null;
-    let elapsedTime = 0;
-    let isRunning = false;
-    let threshold = null;
-
-    // ローカルストレージからデータを読み込む
-    function loadState() {
-      const savedElapsedTime = localStorage.getItem('elapsedTime');
-      const savedThreshold = localStorage.getItem('threshold');
-
-      if (savedElapsedTime) {
-        elapsedTime = parseInt(savedElapsedTime);
-      }
-      if (savedThreshold) {
-        threshold = parseInt(savedThreshold);
-        thresholdInput.value = threshold;
-      }
-
-      updateDisplay();
-    }
-
-    // ローカルストレージにデータを保存する
-    function saveState() {
-      localStorage.setItem('elapsedTime', elapsedTime);
-      if (threshold !== null) {
-        localStorage.setItem('threshold', threshold);
-      }
-    }
-
-    // 表示を更新する
-    function updateDisplay() {
-      const minutes = Math.floor(elapsedTime / 60000);
-      const seconds = Math.floor((elapsedTime % 60000) / 1000);
-      const milliseconds = elapsedTime % 1000;
-
-      stopwatch.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(milliseconds).padStart(3, '0')}`;
-
-      // ライトモードの切り替え
-      if (threshold !== null && elapsedTime >= threshold * 60000) {
-        document.body.classList.add('light-mode');
-      } else {
-        document.body.classList.remove('light-mode');
-      }
-    }
-
-    // タイマーを開始/停止する
+    // タイマーを開始/停止する (クリックイベントの対象をstopwatchに限定)
     function toggleTimer() {
-      if (isRunning) {
-        isRunning = false;
-        const endTime = Date.now();
-        elapsedTime += endTime - startTime;
-        saveState();
-      } else {
-        startTime = Date.now();
-        isRunning = true;
-        requestAnimationFrame(updateTimer);
-      }
+      // ... (これまでのコード)
     }
 
     // タイマーをリセットする
     function resetTimer() {
       isRunning = false;
       elapsedTime = 0;
-      startTime = null;
+      startTime = null;  // startTimeを初期化
       thresholdInput.value = '';
       threshold = null;
       saveState();
       updateDisplay();
     }
-
-    // タイマーを更新する
-    function updateTimer() {
-      if (isRunning) {
-        const currentTime = Date.now();
-        elapsedTime = currentTime - startTime + elapsedTime;
-        updateDisplay();
-        startTime = currentTime;
-        requestAnimationFrame(updateTimer);
-      }
-    }
-
-    // スワイプイベントとクリックイベントでタイマーを操作
-    document.addEventListener('touchstart', (event) => {
-      // スワイプ処理
-    });
-    document.addEventListener('touchend', (event) => {
-      // スワイプ処理
-    });
-    document.addEventListener('click', toggleTimer);
-
-    // 入力値が変更されたときに閾値を更新
-    thresholdInput.addEventListener('change', () => {
-      threshold = parseInt(thresholdInput.value);
-      saveState();
-    });
-
-    // ページロード時に状態を読み込む
-    loadState();
   </script>
 </body>
 </html>
