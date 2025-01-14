@@ -66,6 +66,7 @@
     let isRunning = false;
     let lightModeThreshold = null;
     let touchStartX = 0;
+    let touchEndX = 0;
 
     // Prevent screen from sleeping
     function preventScreenSleep() {
@@ -173,7 +174,7 @@
     });
 
     document.addEventListener("touchend", (event) => {
-      const touchEndX = event.changedTouches[0].clientX;
+      touchEndX = event.changedTouches[0].clientX;
       const swipeDistance = touchEndX - touchStartX;
 
       if (Math.abs(swipeDistance) > 50) {
