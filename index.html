@@ -134,11 +134,13 @@
       }
     }
 
-    // Reset the stopwatch
+    // Reset the stopwatch and clear input
     function resetTimer() {
       isRunning = false;
       elapsedMilliseconds = 0;
       startTime = null;
+      lightModeInput.value = "";
+      lightModeThreshold = null;
       clearState();
       updateStopwatchDisplay();
     }
