@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
   <link rel="icon" href="favicon.ico" type="image/x-icon">
-  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Swipe Stopwatch</title>
@@ -124,10 +123,11 @@
     function toggleTimer() {
       if (isRunning) {
         isRunning = false;
-        elapsedMilliseconds += performance.now() - startTime;
+        const currentTime = Date.now();
+        elapsedMilliseconds += currentTime - startTime;
         saveState();
       } else {
-        startTime = performance.now() - elapsedMilliseconds;
+        startTime = Date.now();
         isRunning = true;
         preventScreenSleep();
         requestAnimationFrame(updateTimer);
@@ -146,8 +146,10 @@
     // Update the timer in real-time
     function updateTimer() {
       if (isRunning) {
-        elapsedMilliseconds = performance.now() - startTime;
+        const currentTime = Date.now();
+        elapsedMilliseconds = currentTime - startTime + elapsedMilliseconds;
         updateStopwatchDisplay();
+        startTime = currentTime; // Update start time for precise difference calculation
         requestAnimationFrame(updateTimer);
       }
     }
