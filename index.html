@@ -5,7 +5,7 @@
   <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Custom Stopwatch</title>
+  <title>Swipe Stopwatch</title>
   <style>
     * {
       margin: 0;
@@ -34,60 +34,53 @@
     }
 
     .stopwatch {
-      font-size: 3rem;
-      margin: 20px;
+      font-size: 4rem;
+      margin: auto;
     }
 
-    .controls {
-      display: flex;
-      gap: 10px;
-    }
-
-    button {
-      padding: 10px 20px;
-      font-size: 1rem;
-      cursor: pointer;
+    .input-box {
+      position: absolute;
+      top: 5%;
+      text-align: center;
     }
 
     input[type="number"] {
-      width: 80px;
+      width: 100px;
       padding: 5px;
       font-size: 1rem;
+      text-align: center;
     }
   </style>
 </head>
 <body>
-  <div class="stopwatch" id="stopwatch">00:00:00.000</div>
-  <div class="controls">
-    <button id="startStopButton">Start</button>
-    <button id="resetButton">Reset</button>
+  <div class="input-box">
     <input type="number" id="lightModeThreshold" placeholder="Minutes" min="1">
   </div>
+  <div class="stopwatch" id="stopwatch">00:00:00.000</div>
 
   <script>
     const stopwatch = document.getElementById("stopwatch");
-    const startStopButton = document.getElementById("startStopButton");
-    const resetButton = document.getElementById("resetButton");
     const lightModeInput = document.getElementById("lightModeThreshold");
 
     let startTime = null;
     let elapsedMilliseconds = 0;
     let isRunning = false;
-    let animationFrameId = null;
     let lightModeThreshold = null;
+    let touchStartX = 0;
+
+    // Prevent screen from sleeping
+    function preventScreenSleep() {
+      if (navigator.wakeLock && navigator.wakeLock.request) {
+        navigator.wakeLock.request("screen").catch((err) => console.error("Wake Lock failed:", err));
+      }
+    }
 
     // Load saved state from localStorage
     function loadState() {
       const savedElapsed = localStorage.getItem("elapsedMilliseconds");
-      const savedRunning = localStorage.getItem("isRunning");
       const savedThreshold = localStorage.getItem("lightModeThreshold");
 
       if (savedElapsed) elapsedMilliseconds = parseInt(savedElapsed, 10);
-      if (savedRunning === "true") {
-        isRunning = true;
-        startTime = performance.now() - elapsedMilliseconds;
-        updateTimer();
-      }
       if (savedThreshold) {
         lightModeThreshold = parseInt(savedThreshold, 10);
         lightModeInput.value = lightModeThreshold;
@@ -99,7 +92,6 @@
     // Save state to localStorage
     function saveState() {
       localStorage.setItem("elapsedMilliseconds", elapsedMilliseconds);
-      localStorage.setItem("isRunning", isRunning);
       if (lightModeThreshold !== null) {
         localStorage.setItem("lightModeThreshold", lightModeThreshold);
       }
@@ -108,7 +100,6 @@
     // Clear state
     function clearState() {
       localStorage.removeItem("elapsedMilliseconds");
-      localStorage.removeItem("isRunning");
       localStorage.removeItem("lightModeThreshold");
     }
 
@@ -129,37 +120,36 @@
       }
     }
 
-    // Animation frame loop to update stopwatch
-    function updateTimer() {
-      if (isRunning) {
-        const now = performance.now();
-        elapsedMilliseconds = now - startTime;
-        updateStopwatchDisplay();
-        animationFrameId = requestAnimationFrame(updateTimer);
-      }
-    }
-
-    // Start/Stop the stopwatch
+    // Start/stop the stopwatch
     function toggleTimer() {
       if (isRunning) {
-        cancelAnimationFrame(animationFrameId);
         isRunning = false;
+        elapsedMilliseconds += performance.now() - startTime;
         saveState();
       } else {
         startTime = performance.now() - elapsedMilliseconds;
         isRunning = true;
-        updateTimer();
+        preventScreenSleep();
+        requestAnimationFrame(updateTimer);
       }
     }
 
     // Reset the stopwatch
     function resetTimer() {
-      cancelAnimationFrame(animationFrameId);
+      isRunning = false;
       elapsedMilliseconds = 0;
       startTime = null;
-      isRunning = false;
       clearState();
       updateStopwatchDisplay();
+    }
+
+    // Update the timer in real-time
+    function updateTimer() {
+      if (isRunning) {
+        elapsedMilliseconds = performance.now() - startTime;
+        updateStopwatchDisplay();
+        requestAnimationFrame(updateTimer);
+      }
     }
 
     // Apply light mode threshold from input
@@ -173,9 +163,22 @@
       }
     });
 
-    // Event listeners for buttons
-    startStopButton.addEventListener("click", toggleTimer);
-    resetButton.addEventListener("click", resetTimer);
+    // Handle touch and swipe events
+    document.addEventListener("touchstart", (event) => {
+      touchStartX = event.touches[0].clientX;
+    });
+
+    document.addEventListener("touchend", (event) => {
+      const touchEndX = event.changedTouches[0].clientX;
+      if (Math.abs(touchEndX - touchStartX) > 50) {
+        resetTimer(); // Swipe to reset
+      } else {
+        toggleTimer(); // Tap to start/stop
+      }
+    });
+
+    // Handle mouse click for desktop
+    document.addEventListener("click", toggleTimer);
 
     // Load state on page load
     loadState();
