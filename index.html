@@ -1,114 +1,134 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
-  <link rel="icon" href="favicon.ico" type="image/x-icon">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Swipe Stopwatch</title>
+  <title>ストップウォッチ</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      background-color: #222;
+      color: #fff;
+      height: 100vh;
+      overflow: hidden;
     }
 
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      background-color: #121212;
-      color: #ffffff;
-      transition: background-color 0.3s, color 0.3s;
-      user-select: none;
+    #stopwatch {
+      font-size: 4rem;
     }
 
     .light-mode {
-      background-color: #ffffff;
-      color: #000000;
-    }
-
-    .stopwatch {
-      font-size: 4rem;
-      margin: auto;
-    }
-
-    .input-box {
-      position: absolute;
-      top: 5%;
-      text-align: center;
-    }
-
-    input[type="number"] {
-      width: 100px;
-      padding: 5px;
-      font-size: 1rem;
-      text-align: center;
+      background-color: #fff;
+      color: #222;
     }
   </style>
 </head>
 <body>
-  <div class="input-box">
-    <input type="number" id="lightModeThreshold" placeholder="Minutes" min="1">
-  </div>
-  <div class="stopwatch" id="stopwatch">00:00:00.000</div>
-
+  <input type="number" id="threshold" placeholder="切り替え時間(分)">
+  <div id="stopwatch">00:00:00</div>
   <script>
-    const stopwatch = document.getElementById("stopwatch");
-    const lightModeInput = document.getElementById("lightModeThreshold");
+    const stopwatch = document.getElementById('stopwatch');
+    const thresholdInput = document.getElementById('threshold');
 
     let startTime = null;
-    let elapsedMilliseconds = 0;
+    let elapsedTime = 0;
     let isRunning = false;
-    let lightModeThreshold = null;
-    let touchStartX = 0;
-    let touchEndX = 0;
+    let threshold = null;
 
-    // Prevent screen from sleeping
-    function preventScreenSleep() {
-      if (navigator.wakeLock && navigator.wakeLock.request) {
-        navigator.wakeLock.request("screen").catch((err) => console.error("Wake Lock failed:", err));
-      }
-    }
-
-    // Load saved state from localStorage
+    // ローカルストレージからデータを読み込む
     function loadState() {
-      const savedElapsed = localStorage.getItem("elapsedMilliseconds");
-      const savedThreshold = localStorage.getItem("lightModeThreshold");
+      const savedElapsedTime = localStorage.getItem('elapsedTime');
+      const savedThreshold = localStorage.getItem('threshold');
 
-      if (savedElapsed) elapsedMilliseconds = parseInt(savedElapsed, 10);
+      if (savedElapsedTime) {
+        elapsedTime = parseInt(savedElapsedTime);
+      }
       if (savedThreshold) {
-        lightModeThreshold = parseInt(savedThreshold, 10);
-        lightModeInput.value = lightModeThreshold;
+        threshold = parseInt(savedThreshold);
+        thresholdInput.value = threshold;
       }
 
-      updateStopwatchDisplay();
+      updateDisplay();
     }
 
-    // Save state to localStorage
+    // ローカルストレージにデータを保存する
     function saveState() {
-      localStorage.setItem("elapsedMilliseconds", elapsedMilliseconds);
-      if (lightModeThreshold !== null) {
-        localStorage.setItem("lightModeThreshold", lightModeThreshold);
+      localStorage.setItem('elapsedTime', elapsedTime);
+      if (threshold !== null) {
+        localStorage.setItem('threshold', threshold);
       }
     }
 
-    // Clear state
-    function clearState() {
-      localStorage.removeItem("elapsedMilliseconds");
-      localStorage.removeItem("lightModeThreshold");
+    // 表示を更新する
+    function updateDisplay() {
+      const minutes = Math.floor(elapsedTime / 60000);
+      const seconds = Math.floor((elapsedTime % 60000) / 1000);
+      const milliseconds = elapsedTime % 1000;
+
+      stopwatch.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(milliseconds).padStart(3, '0')}`;
+
+      // ライトモードの切り替え
+      if (threshold !== null && elapsedTime >= threshold * 60000) {
+        document.body.classList.add('light-mode');
+      } else {
+        document.body.classList.remove('light-mode');
+      }
     }
 
-    // Update stopwatch display
-    function updateStopwatchDisplay() {
-      const totalSeconds = Math.floor(elapsedMilliseconds / 1000);
-      const milliseconds = Math.floor(elapsedMilliseconds % 1000);
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
+    // タイマーを開始/停止する
+    function toggleTimer() {
+      if (isRunning) {
+        isRunning = false;
+        const endTime = Date.now();
+        elapsedTime += endTime - startTime;
+        saveState();
+      } else {
+        startTime = Date.now();
+        isRunning = true;
+        requestAnimationFrame(updateTimer);
+      }
+    }
 
-      stopwatch.textContent = `<span class="math-inline">\{String\(hours\)\.padStart\(2, "0"\)\}\:</span>{String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "
+    // タイマーをリセットする
+    function resetTimer() {
+      isRunning = false;
+      elapsedTime = 0;
+      startTime = null;
+      thresholdInput.value = '';
+      threshold = null;
+      saveState();
+      updateDisplay();
+    }
+
+    // タイマーを更新する
+    function updateTimer() {
+      if (isRunning) {
+        const currentTime = Date.now();
+        elapsedTime = currentTime - startTime + elapsedTime;
+        updateDisplay();
+        startTime = currentTime;
+        requestAnimationFrame(updateTimer);
+      }
+    }
+
+    // スワイプイベントとクリックイベントでタイマーを操作
+    document.addEventListener('touchstart', (event) => {
+      // スワイプ処理
+    });
+    document.addEventListener('touchend', (event) => {
+      // スワイプ処理
+    });
+    document.addEventListener('click', toggleTimer);
+
+    // 入力値が変更されたときに閾値を更新
+    thresholdInput.addEventListener('change', () => {
+      threshold = parseInt(thresholdInput.value);
+      saveState();
+    });
+
+    // ページロード時に状態を読み込む
+    loadState();
+  </script>
+</body>
+</html>
