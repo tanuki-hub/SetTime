@@ -1,78 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="favicon.ico" type="image/x-icon">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Swipe Stopwatch</title>
+  <title>Stopwatch with Light/Dark Mode</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
   <style>
-    * {
+    body {
       margin: 0;
       padding: 0;
-      box-sizing: border-box;
-    }
-
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
       font-family: Arial, sans-serif;
       display: flex;
-      flex-direction: column;
       justify-content: center;
       align-items: center;
+      flex-direction: column;
+      height: 100vh;
       background-color: #121212;
       color: #ffffff;
       transition: background-color 0.3s, color 0.3s;
-      user-select: none;
     }
 
-    .light-mode {
+    body.light-mode {
       background-color: #ffffff;
       color: #000000;
     }
 
+    .stopwatch-container {
+      text-align: center;
+    }
+
     .stopwatch {
-      font-size: 4rem;
-      margin: auto;
+      font-size: 3rem;
+      margin: 20px 0;
     }
 
-    .input-box {
-      position: absolute;
-      top: 5%;
-      text-align: center;
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin: 10px 0;
     }
 
-    input[type="number"] {
-      width: 100px;
-      padding: 5px;
+    .controls button, .controls input {
+      padding: 10px;
       font-size: 1rem;
-      text-align: center;
+    }
+
+    .controls input {
+      width: 100px;
     }
   </style>
 </head>
 <body>
-  <div class="input-box">
-    <input type="number" id="lightModeThreshold" placeholder="Minutes" min="1">
+  <div class="stopwatch-container">
+    <div class="stopwatch" id="stopwatch">00:00:00.000</div>
+    <div class="controls">
+      <button id="startStopButton">Start</button>
+      <button id="resetButton">Reset</button>
+      <input type="number" id="lightModeThreshold" placeholder="Minutes" min="1">
+    </div>
   </div>
-  <div class="stopwatch" id="stopwatch">00:00:00.000</div>
 
   <script>
     const stopwatch = document.getElementById("stopwatch");
-    const lightModeInput = document.getElementById("lightModeThreshold");
+    const startStopButton = document.getElementById("startStopButton");
+    const resetButton = document.getElementById("resetButton");
+    const lightModeThresholdInput = document.getElementById("lightModeThreshold");
 
     let startTime = null;
     let elapsedMilliseconds = 0;
     let isRunning = false;
     let lightModeThreshold = null;
-    let touchStartX = 0;
-
-    // Prevent screen from sleeping
-    function preventScreenSleep() {
-      if (navigator.wakeLock && navigator.wakeLock.request) {
-        navigator.wakeLock.request("screen").catch((err) => console.error("Wake Lock failed:", err));
-      }
-    }
 
     // Load saved state from localStorage
     function loadState() {
@@ -82,7 +79,7 @@
       if (savedElapsed) elapsedMilliseconds = parseInt(savedElapsed, 10);
       if (savedThreshold) {
         lightModeThreshold = parseInt(savedThreshold, 10);
-        lightModeInput.value = lightModeThreshold;
+        lightModeThresholdInput.value = lightModeThreshold;
       }
 
       updateStopwatchDisplay();
@@ -96,7 +93,7 @@
       }
     }
 
-    // Clear state
+    // Clear saved state
     function clearState() {
       localStorage.removeItem("elapsedMilliseconds");
       localStorage.removeItem("lightModeThreshold");
@@ -105,7 +102,7 @@
     // Update stopwatch display
     function updateStopwatchDisplay() {
       const totalSeconds = Math.floor(elapsedMilliseconds / 1000);
-      const milliseconds = Math.floor(elapsedMilliseconds % 1000);
+      const milliseconds = elapsedMilliseconds % 1000;
       const hours = Math.floor(totalSeconds / 3600);
       const minutes = Math.floor((totalSeconds % 3600) / 60);
       const seconds = totalSeconds % 60;
@@ -123,42 +120,42 @@
     function toggleTimer() {
       if (isRunning) {
         isRunning = false;
-        const currentTime = Date.now();
-        elapsedMilliseconds += currentTime - startTime;
+        elapsedMilliseconds += Date.now() - startTime;
         saveState();
       } else {
         startTime = Date.now();
         isRunning = true;
-        preventScreenSleep();
         requestAnimationFrame(updateTimer);
       }
+      startStopButton.textContent = isRunning ? "Stop" : "Start";
     }
 
-    // Reset the stopwatch and clear input
+    // Reset the stopwatch
     function resetTimer() {
       isRunning = false;
       elapsedMilliseconds = 0;
       startTime = null;
-      lightModeInput.value = "";
+      lightModeThresholdInput.value = "";
       lightModeThreshold = null;
       clearState();
       updateStopwatchDisplay();
+      startStopButton.textContent = "Start";
     }
 
-    // Update the timer in real-time
+    // Update the stopwatch in real-time
     function updateTimer() {
       if (isRunning) {
-        const currentTime = Date.now();
-        elapsedMilliseconds = currentTime - startTime + elapsedMilliseconds;
+        const now = Date.now();
+        elapsedMilliseconds += now - startTime;
+        startTime = now; // Update start time for accurate calculation
         updateStopwatchDisplay();
-        startTime = currentTime; // Update start time for precise difference calculation
         requestAnimationFrame(updateTimer);
       }
     }
 
-    // Apply light mode threshold from input
-    lightModeInput.addEventListener("change", () => {
-      const value = parseInt(lightModeInput.value, 10);
+    // Handle input for light mode threshold
+    lightModeThresholdInput.addEventListener("change", () => {
+      const value = parseInt(lightModeThresholdInput.value, 10);
       if (!isNaN(value) && value > 0) {
         lightModeThreshold = value;
         saveState();
@@ -167,26 +164,11 @@
       }
     });
 
-    // Handle touch and swipe events
-    document.addEventListener("touchstart", (event) => {
-      touchStartX = event.touches[0].clientX;
-    });
+    // Event listeners for buttons
+    startStopButton.addEventListener("click", toggleTimer);
+    resetButton.addEventListener("click", resetTimer);
 
-    document.addEventListener("touchend", (event) => {
-      const touchEndX = event.changedTouches[0].clientX;
-      const swipeDistance = touchEndX - touchStartX;
-
-      if (Math.abs(swipeDistance) > 50) {
-        resetTimer(); // Right or left swipe to reset
-      } else {
-        toggleTimer(); // Tap to start/stop
-      }
-    });
-
-    // Handle mouse click for desktop
-    document.addEventListener("click", toggleTimer);
-
-    // Load state on page load
+    // Initialize the stopwatch
     loadState();
   </script>
 </body>
