@@ -11,12 +11,11 @@
       padding: 0;
       font-family: Arial, sans-serif;
       display: flex;
-      justify-content: center;
-      align-items: center;
       flex-direction: column;
       height: 100vh;
       background-color: #121212;
       color: #ffffff;
+      overflow: hidden;
       transition: background-color 0.3s, color 0.3s;
     }
 
@@ -25,51 +24,61 @@
       color: #000000;
     }
 
+    .top-block {
+      flex: 1;
+      width: 100%;
+      background-color: transparent;
+      touch-action: none;
+    }
+
     .stopwatch-container {
+      flex: 2;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #lightModeThreshold {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 5px;
+      font-size: 1rem;
+      width: 120px;
       text-align: center;
     }
 
     .stopwatch {
       font-size: 3rem;
-      margin: 20px 0;
     }
 
-    .controls {
-      display: flex;
-      gap: 10px;
-      margin: 10px 0;
-    }
-
-    .controls button, .controls input {
-      padding: 10px;
-      font-size: 1rem;
-    }
-
-    .controls input {
-      width: 100px;
+    .bottom-block {
+      flex: 1;
+      width: 100%;
+      background-color: transparent;
     }
   </style>
 </head>
 <body>
+  <input type="number" id="lightModeThreshold" placeholder="Minutes" min="1">
+  <div class="top-block"></div>
   <div class="stopwatch-container">
     <div class="stopwatch" id="stopwatch">00:00:00.000</div>
-    <div class="controls">
-      <button id="startStopButton">Start</button>
-      <button id="resetButton">Reset</button>
-      <input type="number" id="lightModeThreshold" placeholder="Minutes" min="1">
-    </div>
   </div>
+  <div class="bottom-block" id="touchArea"></div>
 
   <script>
     const stopwatch = document.getElementById("stopwatch");
-    const startStopButton = document.getElementById("startStopButton");
-    const resetButton = document.getElementById("resetButton");
     const lightModeThresholdInput = document.getElementById("lightModeThreshold");
+    const touchArea = document.getElementById("touchArea");
 
     let startTime = null;
     let elapsedMilliseconds = 0;
     let isRunning = false;
     let lightModeThreshold = null;
+    let wakeLock = null;
 
     // Load saved state from localStorage
     function loadState() {
@@ -121,13 +130,14 @@
       if (isRunning) {
         isRunning = false;
         elapsedMilliseconds += Date.now() - startTime;
+        releaseWakeLock();
         saveState();
       } else {
         startTime = Date.now();
         isRunning = true;
+        acquireWakeLock();
         requestAnimationFrame(updateTimer);
       }
-      startStopButton.textContent = isRunning ? "Stop" : "Start";
     }
 
     // Reset the stopwatch
@@ -139,7 +149,7 @@
       lightModeThreshold = null;
       clearState();
       updateStopwatchDisplay();
-      startStopButton.textContent = "Start";
+      releaseWakeLock();
     }
 
     // Update the stopwatch in real-time
@@ -150,6 +160,25 @@
         startTime = now; // Update start time for accurate calculation
         updateStopwatchDisplay();
         requestAnimationFrame(updateTimer);
+      }
+    }
+
+    // Acquire wake lock to prevent screen from turning off
+    async function acquireWakeLock() {
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+        } catch (err) {
+          console.error('Failed to acquire wake lock:', err);
+        }
+      }
+    }
+
+    // Release wake lock
+    function releaseWakeLock() {
+      if (wakeLock) {
+        wakeLock.release();
+        wakeLock = null;
       }
     }
 
@@ -164,9 +193,23 @@
       }
     });
 
-    // Event listeners for buttons
-    startStopButton.addEventListener("click", toggleTimer);
-    resetButton.addEventListener("click", resetTimer);
+    // Add touch/swipe event listeners
+    let touchStartX = 0;
+
+    touchArea.addEventListener("touchstart", (e) => {
+      touchStartX = e.touches[0].clientX;
+    });
+
+    touchArea.addEventListener("touchend", (e) => {
+      const touchEndX = e.changedTouches[0].clientX;
+      if (Math.abs(touchEndX - touchStartX) > 50) {
+        resetTimer(); // Swipe detected
+      } else {
+        toggleTimer(); // Tap detected
+      }
+    });
+
+    touchArea.addEventListener("click", toggleTimer); // For PC support
 
     // Initialize the stopwatch
     loadState();
