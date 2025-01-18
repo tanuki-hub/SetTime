@@ -6,12 +6,15 @@
   <title>Stopwatch with Light/Dark Mode</title>
   <link rel="icon" href="favicon.ico" type="image/x-icon">
   <style>
-    html, body {
+    body {
       margin: 0;
       padding: 0;
       font-family: Arial, sans-serif;
-      height: 100%;
-      overflow: hidden; /* スクロールを完全に無効化 */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      height: 100vh;
       background-color: #121212;
       color: #ffffff;
       transition: background-color 0.3s, color 0.3s;
@@ -22,75 +25,53 @@
       color: #000000;
     }
 
-    .top-block {
-      flex: 1;
-      width: 100%;
-      background-color: transparent;
-      touch-action: none; /* タッチ操作を無効化 */
-    }
-
     .stopwatch-container {
-      flex: 2;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-    }
-
-    #lightModeThreshold {
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 5px;
-      font-size: 1rem;
-      width: 120px;
       text-align: center;
     }
 
     .stopwatch {
-      font-size: 5rem; /* 数字のサイズを大きく設定 */
+      font-size: 3rem;
+      margin: 20px 0;
     }
 
-    .bottom-block {
-      flex: 4; /* 下4/5をタッチ可能領域として確保 */
-      width: 100%;
-      background-color: transparent;
-    }
-
-    .wrapper {
+    .controls {
       display: flex;
-      flex-direction: column;
-      height: 100%; /* ページ全体をブラウザ一杯に広げる */
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    .controls button, .controls input {
+      padding: 10px;
+      font-size: 1rem;
+    }
+
+    .controls input {
+      width: 100px;
     }
   </style>
 </head>
 <body>
-  <div class="wrapper">
-    <input type="number" id="lightModeThreshold" placeholder="Minutes" min="1">
-    <div class="top-block"></div>
-    <div class="stopwatch-container">
-      <div class="stopwatch" id="stopwatch">00:00:00.000</div>
+  <div class="stopwatch-container">
+    <div class="stopwatch" id="stopwatch">00:00:00.000</div>
+    <div class="controls">
+      <button id="startStopButton">Start</button>
+      <button id="resetButton">Reset</button>
+      <input type="number" id="lightModeThreshold" placeholder="Minutes" min="1">
     </div>
-    <div class="bottom-block" id="touchArea"></div>
   </div>
 
   <script>
     const stopwatch = document.getElementById("stopwatch");
+    const startStopButton = document.getElementById("startStopButton");
+    const resetButton = document.getElementById("resetButton");
     const lightModeThresholdInput = document.getElementById("lightModeThreshold");
-    const touchArea = document.getElementById("touchArea");
 
     let startTime = null;
     let elapsedMilliseconds = 0;
     let isRunning = false;
     let lightModeThreshold = null;
-    let wakeLock = null;
 
-    // タッチ判定用
-    let touchStartX = 0;
-    let touchStartY = 0;
-
-    // ローカルストレージから状態を読み込む
+    // Load saved state from localStorage
     function loadState() {
       const savedElapsed = localStorage.getItem("elapsedMilliseconds");
       const savedThreshold = localStorage.getItem("lightModeThreshold");
@@ -104,7 +85,7 @@
       updateStopwatchDisplay();
     }
 
-    // ローカルストレージに状態を保存する
+    // Save state to localStorage
     function saveState() {
       localStorage.setItem("elapsedMilliseconds", elapsedMilliseconds);
       if (lightModeThreshold !== null) {
@@ -112,13 +93,13 @@
       }
     }
 
-    // ローカルストレージをクリアする
+    // Clear saved state
     function clearState() {
       localStorage.removeItem("elapsedMilliseconds");
       localStorage.removeItem("lightModeThreshold");
     }
 
-    // ストップウォッチ表示を更新する
+    // Update stopwatch display
     function updateStopwatchDisplay() {
       const totalSeconds = Math.floor(elapsedMilliseconds / 1000);
       const milliseconds = elapsedMilliseconds % 1000;
@@ -135,22 +116,21 @@
       }
     }
 
-    // スタート/ストップ
+    // Start/stop the stopwatch
     function toggleTimer() {
       if (isRunning) {
         isRunning = false;
         elapsedMilliseconds += Date.now() - startTime;
-        releaseWakeLock();
         saveState();
       } else {
         startTime = Date.now();
         isRunning = true;
-        acquireWakeLock();
         requestAnimationFrame(updateTimer);
       }
+      startStopButton.textContent = isRunning ? "Stop" : "Start";
     }
 
-    // リセット
+    // Reset the stopwatch
     function resetTimer() {
       isRunning = false;
       elapsedMilliseconds = 0;
@@ -159,10 +139,10 @@
       lightModeThreshold = null;
       clearState();
       updateStopwatchDisplay();
-      releaseWakeLock();
+      startStopButton.textContent = "Start";
     }
 
-    // リアルタイムで更新
+    // Update the stopwatch in real-time
     function updateTimer() {
       if (isRunning) {
         const now = Date.now();
@@ -173,26 +153,7 @@
       }
     }
 
-    // 画面オフを防止
-    async function acquireWakeLock() {
-      if ('wakeLock' in navigator) {
-        try {
-          wakeLock = await navigator.wakeLock.request('screen');
-        } catch (err) {
-          console.error('Failed to acquire wake lock:', err);
-        }
-      }
-    }
-
-    // ウェイクロック解除
-    function releaseWakeLock() {
-      if (wakeLock) {
-        wakeLock.release();
-        wakeLock = null;
-      }
-    }
-
-    // 入力処理
+    // Handle input for light mode threshold
     lightModeThresholdInput.addEventListener("change", () => {
       const value = parseInt(lightModeThresholdInput.value, 10);
       if (!isNaN(value) && value > 0) {
@@ -203,29 +164,67 @@
       }
     });
 
-    // タッチ操作の追加
-    touchArea.addEventListener("touchstart", (e) => {
-      touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
-    });
+    // Event listeners for buttons
+    startStopButton.addEventListener("click", toggleTimer);
+    resetButton.addEventListener("click", resetTimer);
 
-    touchArea.addEventListener("touchend", (e) => {
-      const touchEndX = e.changedTouches[0].clientX;
-      const touchEndY = e.changedTouches[0].clientY;
-      const dx = touchEndX - touchStartX;
-      const dy = touchEndY - touchStartY;
-
-      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
-        resetTimer(); // 横スワイプでリセット
-      } else if (Math.abs(dx) <= 10 && Math.abs(dy) <= 10) {
-        toggleTimer(); // タップでスタート/ストップ
-      }
-    });
-
-    touchArea.addEventListener("click", toggleTimer); // PC対応のクリック
-
-    // 初期化
+    // Initialize the stopwatch
     loadState();
+
+    let wakeLock = null;
+
+    // Request wake lock to prevent screen from turning off
+    async function requestWakeLock() {
+        if ('wakeLock' in navigator) {
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Wake Lock is active.');
+            } catch (err) {
+                console.error('Wake Lock request failed:', err);
+            }
+        } else {
+            console.warn('Wake Lock API is not supported in this browser.');
+        }
+    }
+
+    // Release wake lock
+    async function releaseWakeLock() {
+        if (wakeLock) {
+            try {
+                await wakeLock.release();
+                wakeLock = null;
+                console.log('Wake Lock is released.');
+            } catch (err) {
+                console.error('Failed to release Wake Lock:', err);
+            }
+        }
+    }
+
+    // Update toggleTimer to handle wake lock
+    function toggleTimer() {
+        if (isRunning) {
+            isRunning = false;
+            elapsedMilliseconds += Date.now() - startTime;
+            saveState();
+            releaseWakeLock(); // Release wake lock when stopping
+        } else {
+            startTime = Date.now();
+            isRunning = true;
+            requestWakeLock(); // Request wake lock when starting
+            requestAnimationFrame(updateTimer);
+        }
+        startStopButton.textContent = isRunning ? "Stop" : "Start";
+    }
+
+    // Call releaseWakeLock on page visibility change
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && wakeLock) {
+            releaseWakeLock();
+        }
+    });
   </script>
 </body>
 </html>
+
+このコードに、
+・動作中は画面オフにしないように
