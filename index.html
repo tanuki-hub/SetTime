@@ -1,146 +1,192 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ストップウォッチ</title>
+  <title>Swipe Stopwatch</title>
   <style>
-    body {
-      font-family: sans-serif;
-      height: 100vh;
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
       overflow: hidden;
-      background-color: #222;
-      color: #fff;
+      font-family: Arial, sans-serif;
       display: flex;
       flex-direction: column;
-      align-items: center;
-    }
-
-    .input-box {
-      width: 100%;
-      text-align: center;
-      margin-bottom: 20px;
-      display: flex;
       justify-content: center;
       align-items: center;
-    }
-
-    #stopwatch {
-      font-size: 4rem;
+      background-color: #121212;
+      color: #ffffff;
+      transition: background-color 0.3s, color 0.3s;
+      user-select: none;
     }
 
     .light-mode {
-      background-color: #fff;
-      color: #222;
+      background-color: #ffffff;
+      color: #000000;
+    }
+
+    .stopwatch {
+      font-size: 4rem;
+      margin: auto;
+    }
+
+    .input-box {
+      position: absolute;
+      top: 5%;
+      text-align: center;
+    }
+
+    input[type="number"] {
+      width: 100px;
+      padding: 5px;
+      font-size: 1rem;
+      text-align: center;
     }
   </style>
 </head>
 <body>
   <div class="input-box">
-    <input type="number" id="threshold" placeholder="切り替え時間(分)">
+    <input type="number" id="lightModeThreshold" placeholder="Minutes" min="1">
   </div>
-  <div id="stopwatch" onclick="toggleTimer()">00:00:00</div>
+  <div class="stopwatch" id="stopwatch">00:00:00.000</div>
+
   <script>
-    const stopwatch = document.getElementById('stopwatch');
-    const thresholdInput = document.getElementById('threshold');
+    const stopwatch = document.getElementById("stopwatch");
+    const lightModeInput = document.getElementById("lightModeThreshold");
 
     let startTime = null;
-    let elapsedTime = 0;
+    let elapsedMilliseconds = 0;
     let isRunning = false;
-    let threshold = null;
+    let lightModeThreshold = null;
+    let touchStartX = 0;
 
-    // ローカルストレージからデータを読み込む
+    // Prevent screen from sleeping
+    function preventScreenSleep() {
+      if (navigator.wakeLock && navigator.wakeLock.request) {
+        navigator.wakeLock.request("screen").catch((err) => console.error("Wake Lock failed:", err));
+      }
+    }
+
+    // Load saved state from localStorage
     function loadState() {
-      const savedElapsedTime = localStorage.getItem('elapsedTime');
-      const savedThreshold = localStorage.getItem('threshold');
+      const savedElapsed = localStorage.getItem("elapsedMilliseconds");
+      const savedThreshold = localStorage.getItem("lightModeThreshold");
 
-      if (savedElapsedTime) {
-        elapsedTime = parseInt(savedElapsedTime);
-      }
+      if (savedElapsed) elapsedMilliseconds = parseInt(savedElapsed, 10);
       if (savedThreshold) {
-        threshold = parseInt(savedThreshold);
-        thresholdInput.value = threshold;
+        lightModeThreshold = parseInt(savedThreshold, 10);
+        lightModeInput.value = lightModeThreshold;
       }
 
-      updateDisplay();
+      updateStopwatchDisplay();
     }
 
-    // ローカルストレージにデータを保存する
+    // Save state to localStorage
     function saveState() {
-      localStorage.setItem('elapsedTime', elapsedTime);
-      if (threshold !== null) {
-        localStorage.setItem('threshold', threshold);
+      localStorage.setItem("elapsedMilliseconds", elapsedMilliseconds);
+      if (lightModeThreshold !== null) {
+        localStorage.setItem("lightModeThreshold", lightModeThreshold);
       }
     }
 
-    // 表示を更新する
-    function updateDisplay() {
-      const minutes = Math.floor(elapsedTime / 60000);
-      const seconds = Math.floor((elapsedTime % 60000) / 1000);
-      const milliseconds = elapsedTime % 1000;
+    // Clear state
+    function clearState() {
+      localStorage.removeItem("elapsedMilliseconds");
+      localStorage.removeItem("lightModeThreshold");
+    }
 
-      stopwatch.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(milliseconds).padStart(3, '0')}`;
+    // Update stopwatch display
+    function updateStopwatchDisplay() {
+      const totalSeconds = Math.floor(elapsedMilliseconds / 1000);
+      const milliseconds = Math.floor(elapsedMilliseconds % 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
 
-      // ライトモードの切り替え
-      if (threshold !== null && elapsedTime >= threshold * 60000) {
-        document.body.classList.add('light-mode');
+      stopwatch.textContent = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(milliseconds).padStart(3, "0")}`;
+
+      if (lightModeThreshold !== null && totalSeconds >= lightModeThreshold * 60) {
+        document.body.classList.add("light-mode");
       } else {
-        document.body.classList.remove('light-mode');
+        document.body.classList.remove("light-mode");
       }
     }
 
-    // タイマーを開始/停止する
+    // Start/stop the stopwatch
     function toggleTimer() {
       if (isRunning) {
         isRunning = false;
-        const endTime = Date.now();
-        elapsedTime += endTime - startTime;
+        const currentTime = Date.now();
+        elapsedMilliseconds += currentTime - startTime;
         saveState();
       } else {
         startTime = Date.now();
         isRunning = true;
+        preventScreenSleep();
         requestAnimationFrame(updateTimer);
       }
     }
 
-    // タイマーをリセットする
+    // Reset the stopwatch and clear input
     function resetTimer() {
       isRunning = false;
-      elapsedTime = 0;
+      elapsedMilliseconds = 0;
       startTime = null;
-      thresholdInput.value = '';
-      threshold = null;
-      saveState();
-      updateDisplay();
+      lightModeInput.value = "";
+      lightModeThreshold = null;
+      clearState();
+      updateStopwatchDisplay();
     }
 
-    // タイマーを更新する
+    // Update the timer in real-time
     function updateTimer() {
       if (isRunning) {
         const currentTime = Date.now();
-        elapsedTime = currentTime - startTime + elapsedTime;
-        updateDisplay();
-        startTime = currentTime;
+        elapsedMilliseconds = currentTime - startTime + elapsedMilliseconds;
+        updateStopwatchDisplay();
+        startTime = currentTime; // Update start time for precise difference calculation
         requestAnimationFrame(updateTimer);
       }
     }
 
-    // スワイプイベントとクリックイベントでタイマーを操作
-    document.addEventListener('touchstart', (event) => {
-      // スワイプ処理
-    });
-    document.addEventListener('touchend', (event) => {
-      // スワイプ処理
-    });
-    document.addEventListener('click', toggleTimer);
-
-    // 入力値が変更されたときに閾値を更新
-    thresholdInput.addEventListener('change', () => {
-      threshold = parseInt(thresholdInput.value);
-      saveState();
+    // Apply light mode threshold from input
+    lightModeInput.addEventListener("change", () => {
+      const value = parseInt(lightModeInput.value, 10);
+      if (!isNaN(value) && value > 0) {
+        lightModeThreshold = value;
+        saveState();
+      } else {
+        alert("Please enter a valid number greater than 0.");
+      }
     });
 
-    // ページロード時に状態を読み込む
+    // Handle touch and swipe events
+    document.addEventListener("touchstart", (event) => {
+      touchStartX = event.touches[0].clientX;
+    });
+
+    document.addEventListener("touchend", (event) => {
+      const touchEndX = event.changedTouches[0].clientX;
+      const swipeDistance = touchEndX - touchStartX;
+
+      if (Math.abs(swipeDistance) > 50) {
+        resetTimer(); // Right or left swipe to reset
+      } else {
+        toggleTimer(); // Tap to start/stop
+      }
+    });
+
+    // Handle mouse click for desktop
+    document.addEventListener("click", toggleTimer);
+
+    // Load state on page load
     loadState();
   </script>
 </body>
