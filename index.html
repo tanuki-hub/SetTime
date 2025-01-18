@@ -6,16 +6,14 @@
   <title>Stopwatch with Light/Dark Mode</title>
   <link rel="icon" href="favicon.ico" type="image/x-icon">
   <style>
-    body {
+    html, body {
       margin: 0;
       padding: 0;
       font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
+      height: 100%;
+      overflow: hidden; /* スクロールを完全に無効化 */
       background-color: #121212;
       color: #ffffff;
-      overflow: hidden; /* スクロールを無効化 */
       transition: background-color 0.3s, color 0.3s;
     }
 
@@ -28,7 +26,7 @@
       flex: 1;
       width: 100%;
       background-color: transparent;
-      touch-action: none;
+      touch-action: none; /* タッチ操作を無効化 */
     }
 
     .stopwatch-container {
@@ -51,23 +49,31 @@
     }
 
     .stopwatch {
-      font-size: 5rem; /* 数字のサイズを大きく調整 */
+      font-size: 5rem; /* 数字のサイズを大きく設定 */
     }
 
     .bottom-block {
-      flex: 4; /* 下のタップ可能領域を全体の4/5に拡大 */
+      flex: 4; /* 下4/5をタッチ可能領域として確保 */
       width: 100%;
       background-color: transparent;
+    }
+
+    .wrapper {
+      display: flex;
+      flex-direction: column;
+      height: 100%; /* ページ全体をブラウザ一杯に広げる */
     }
   </style>
 </head>
 <body>
-  <input type="number" id="lightModeThreshold" placeholder="Minutes" min="1">
-  <div class="top-block"></div>
-  <div class="stopwatch-container">
-    <div class="stopwatch" id="stopwatch">00:00:00.000</div>
+  <div class="wrapper">
+    <input type="number" id="lightModeThreshold" placeholder="Minutes" min="1">
+    <div class="top-block"></div>
+    <div class="stopwatch-container">
+      <div class="stopwatch" id="stopwatch">00:00:00.000</div>
+    </div>
+    <div class="bottom-block" id="touchArea"></div>
   </div>
-  <div class="bottom-block" id="touchArea"></div>
 
   <script>
     const stopwatch = document.getElementById("stopwatch");
@@ -84,7 +90,7 @@
     let touchStartX = 0;
     let touchStartY = 0;
 
-    // Load saved state from localStorage
+    // ローカルストレージから状態を読み込む
     function loadState() {
       const savedElapsed = localStorage.getItem("elapsedMilliseconds");
       const savedThreshold = localStorage.getItem("lightModeThreshold");
@@ -98,7 +104,7 @@
       updateStopwatchDisplay();
     }
 
-    // Save state to localStorage
+    // ローカルストレージに状態を保存する
     function saveState() {
       localStorage.setItem("elapsedMilliseconds", elapsedMilliseconds);
       if (lightModeThreshold !== null) {
@@ -106,13 +112,13 @@
       }
     }
 
-    // Clear saved state
+    // ローカルストレージをクリアする
     function clearState() {
       localStorage.removeItem("elapsedMilliseconds");
       localStorage.removeItem("lightModeThreshold");
     }
 
-    // Update stopwatch display
+    // ストップウォッチ表示を更新する
     function updateStopwatchDisplay() {
       const totalSeconds = Math.floor(elapsedMilliseconds / 1000);
       const milliseconds = elapsedMilliseconds % 1000;
@@ -129,7 +135,7 @@
       }
     }
 
-    // Start/stop the stopwatch
+    // スタート/ストップ
     function toggleTimer() {
       if (isRunning) {
         isRunning = false;
@@ -144,7 +150,7 @@
       }
     }
 
-    // Reset the stopwatch
+    // リセット
     function resetTimer() {
       isRunning = false;
       elapsedMilliseconds = 0;
@@ -156,7 +162,7 @@
       releaseWakeLock();
     }
 
-    // Update the stopwatch in real-time
+    // リアルタイムで更新
     function updateTimer() {
       if (isRunning) {
         const now = Date.now();
@@ -167,7 +173,7 @@
       }
     }
 
-    // Acquire wake lock to prevent screen from turning off
+    // 画面オフを防止
     async function acquireWakeLock() {
       if ('wakeLock' in navigator) {
         try {
@@ -178,7 +184,7 @@
       }
     }
 
-    // Release wake lock
+    // ウェイクロック解除
     function releaseWakeLock() {
       if (wakeLock) {
         wakeLock.release();
@@ -186,7 +192,7 @@
       }
     }
 
-    // Handle input for light mode threshold
+    // 入力処理
     lightModeThresholdInput.addEventListener("change", () => {
       const value = parseInt(lightModeThresholdInput.value, 10);
       if (!isNaN(value) && value > 0) {
@@ -197,7 +203,7 @@
       }
     });
 
-    // Add touch/swipe event listeners
+    // タッチ操作の追加
     touchArea.addEventListener("touchstart", (e) => {
       touchStartX = e.touches[0].clientX;
       touchStartY = e.touches[0].clientY;
@@ -210,15 +216,15 @@
       const dy = touchEndY - touchStartY;
 
       if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
-        resetTimer(); // Swipe detected
+        resetTimer(); // 横スワイプでリセット
       } else if (Math.abs(dx) <= 10 && Math.abs(dy) <= 10) {
-        toggleTimer(); // Tap detected
+        toggleTimer(); // タップでスタート/ストップ
       }
     });
 
-    touchArea.addEventListener("click", toggleTimer); // For PC support
+    touchArea.addEventListener("click", toggleTimer); // PC対応のクリック
 
-    // Initialize the stopwatch
+    // 初期化
     loadState();
   </script>
 </body>
