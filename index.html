@@ -15,7 +15,7 @@
       height: 100vh;
       background-color: #121212;
       color: #ffffff;
-      overflow: hidden;
+      overflow: hidden; /* スクロールを無効化 */
       transition: background-color 0.3s, color 0.3s;
     }
 
@@ -51,11 +51,11 @@
     }
 
     .stopwatch {
-      font-size: 3rem;
+      font-size: 5rem; /* 数字のサイズを大きく調整 */
     }
 
     .bottom-block {
-      flex: 1;
+      flex: 4; /* 下のタップ可能領域を全体の4/5に拡大 */
       width: 100%;
       background-color: transparent;
     }
