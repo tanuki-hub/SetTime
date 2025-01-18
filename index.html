@@ -80,6 +80,10 @@
     let lightModeThreshold = null;
     let wakeLock = null;
 
+    // タッチ判定用
+    let touchStartX = 0;
+    let touchStartY = 0;
+
     // Load saved state from localStorage
     function loadState() {
       const savedElapsed = localStorage.getItem("elapsedMilliseconds");
@@ -194,17 +198,20 @@
     });
 
     // Add touch/swipe event listeners
-    let touchStartX = 0;
-
     touchArea.addEventListener("touchstart", (e) => {
       touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
     });
 
     touchArea.addEventListener("touchend", (e) => {
       const touchEndX = e.changedTouches[0].clientX;
-      if (Math.abs(touchEndX - touchStartX) > 50) {
+      const touchEndY = e.changedTouches[0].clientY;
+      const dx = touchEndX - touchStartX;
+      const dy = touchEndY - touchStartY;
+
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
         resetTimer(); // Swipe detected
-      } else {
+      } else if (Math.abs(dx) <= 10 && Math.abs(dy) <= 10) {
         toggleTimer(); // Tap detected
       }
     });
