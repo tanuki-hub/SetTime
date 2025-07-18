@@ -1,259 +1,227 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Timer App</title>
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: #222;
-            color: #fff;
-            transition: background-color 0.5s, color 0.5s;
-        }
-        body.light-mode {
-            background-color: #fff;
-            color: #000;
-        }
-        #display {
-            font-size: 3rem;
-            margin-bottom: 20px;
-        }
-        #stopwatch {
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-            display: none;
-        }
-        #total-time {
-            font-size: 1.2rem;
-            margin-bottom: 20px;
-            display: none;
-        }
-        .keypad {
-            display: grid;
-            grid-template-columns: repeat(3, 80px);
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .keypad button {
-            padding: 20px;
-            font-size: 1.5rem;
-            border: none;
-            border-radius: 5px;
-            background-color: #444;
-            color: #fff;
-            cursor: pointer;
-        }
-        .keypad button:active {
-            background-color: #555;
-        }
-        body.light-mode .keypad button {
-            background-color: #ccc;
-            color: #000;
-        }
-        body.light-mode .keypad button:active {
-            background-color: #bbb;
-        }
-        #controls {
-            display: flex;
-            gap: 10px;
-        }
-        #controls button {
-            padding: 10px 20px;
-            font-size: 1rem;
-            border: none;
-            border-radius: 5px;
-            background-color: #444;
-            color: #fff;
-            cursor: pointer;
-        }
-        #controls button:active {
-            background-color: #555;
-        }
-        body.light-mode #controls button {
-            background-color: #ccc;
-            color: #000;
-        }
-        body.light-mode #controls button:active {
-            background-color: #bbb;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stopwatch with Light/Dark Mode</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      height: 100vh;
+      background-color: #121212;
+      color: #ffffff;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    body.light-mode {
+      background-color: #ffffff;
+      color: #000000;
+    }
+
+    .stopwatch-container {
+      text-align: center;
+    }
+
+    .stopwatch {
+      font-size: 3rem;
+      margin: 20px 0;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    .controls button, .controls input {
+      padding: 10px;
+      font-size: 1rem;
+    }
+
+    .controls input {
+      width: 100px;
+    }
+  </style>
 </head>
 <body>
-    <div id="display">00:00</div>
-    <div id="stopwatch">00:00</div>
-    <div id="total-time">Total: 00:00</div>
-    <div class="keypad">
-        <button onclick="addDigit('1')">1</button>
-        <button onclick="addDigit('2')">2</button>
-        <button onclick="addDigit('3')">3</button>
-        <button onclick="addDigit('4')">4</button>
-        <button onclick="addDigit('5')">5</button>
-        <button onclick="addDigit('6')">6</button>
-        <button onclick="addDigit('7')">7</button>
-        <button onclick="addDigit('8')">8</button>
-        <button onclick="addDigit('9')">9</button>
-        <button onclick="addDigit('00')">00</button>
-        <button onclick="addDigit('0')">0</button>
-        <button onclick="calculateTotal()">=</button>
+  <div class="stopwatch-container">
+    <div class="stopwatch" id="stopwatch">00:00:00.000</div>
+    <div class="controls">
+      <button id="startStopButton">Start</button>
+      <button id="resetButton">Reset</button>
+      <input type="number" id="lightModeThreshold" placeholder="Minutes" min="1">
     </div>
-    <div id="controls">
-        <button id="startPause" onclick="startPauseTimer()">Start</button>
-        <button onclick="resetTimer()">Reset</button>
-    </div>
+  </div>
 
-    <script>
-        let input = '';
-        let timerSeconds = 0;
-        let stopwatchSeconds = 0;
-        let isRunning = false;
-        let isPaused = false;
-        let timerInterval = null;
-        let stopwatchInterval = null;
-        let noSleep = null;
-        let timerEnded = false;
+  <script>
+    const stopwatch = document.getElementById("stopwatch");
+    const startStopButton = document.getElementById("startStopButton");
+    const resetButton = document.getElementById("resetButton");
+    const lightModeThresholdInput = document.getElementById("lightModeThreshold");
 
-        // NoSleep.jsを使ってスリープ防止
-        function enableNoSleep() {
-            if (!noSleep) {
-                noSleep = new NoSleep();
+    let startTime = null;
+    let elapsedMilliseconds = 0;
+    let isRunning = false;
+    let lightModeThreshold = null;
+
+    // Load saved state from localStorage
+    function loadState() {
+      const savedElapsed = localStorage.getItem("elapsedMilliseconds");
+      const savedThreshold = localStorage.getItem("lightModeThreshold");
+
+      if (savedElapsed) elapsedMilliseconds = parseInt(savedElapsed, 10);
+      if (savedThreshold) {
+        lightModeThreshold = parseInt(savedThreshold, 10);
+        lightModeThresholdInput.value = lightModeThreshold;
+      }
+
+      updateStopwatchDisplay();
+    }
+
+    // Save state to localStorage
+    function saveState() {
+      localStorage.setItem("elapsedMilliseconds", elapsedMilliseconds);
+      if (lightModeThreshold !== null) {
+        localStorage.setItem("lightModeThreshold", lightModeThreshold);
+      }
+    }
+
+    // Clear saved state
+    function clearState() {
+      localStorage.removeItem("elapsedMilliseconds");
+      localStorage.removeItem("lightModeThreshold");
+    }
+
+    // Update stopwatch display
+    function updateStopwatchDisplay() {
+      const totalSeconds = Math.floor(elapsedMilliseconds / 1000);
+      const milliseconds = elapsedMilliseconds % 1000;
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+
+      stopwatch.textContent = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(milliseconds).padStart(3, "0")}`;
+
+      if (lightModeThreshold !== null && totalSeconds >= lightModeThreshold * 60) {
+        document.body.classList.add("light-mode");
+      } else {
+        document.body.classList.remove("light-mode");
+      }
+    }
+
+    // Start/stop the stopwatch
+    function toggleTimer() {
+      if (isRunning) {
+        isRunning = false;
+        elapsedMilliseconds += Date.now() - startTime;
+        saveState();
+      } else {
+        startTime = Date.now();
+        isRunning = true;
+        requestAnimationFrame(updateTimer);
+      }
+      startStopButton.textContent = isRunning ? "Stop" : "Start";
+    }
+
+    // Reset the stopwatch
+    function resetTimer() {
+      isRunning = false;
+      elapsedMilliseconds = 0;
+      startTime = null;
+      lightModeThresholdInput.value = "";
+      lightModeThreshold = null;
+      clearState();
+      updateStopwatchDisplay();
+      startStopButton.textContent = "Start";
+    }
+
+    // Update the stopwatch in real-time
+    function updateTimer() {
+      if (isRunning) {
+        const now = Date.now();
+        elapsedMilliseconds += now - startTime;
+        startTime = now; // Update start time for accurate calculation
+        updateStopwatchDisplay();
+        requestAnimationFrame(updateTimer);
+      }
+    }
+
+    // Handle input for light mode threshold
+    lightModeThresholdInput.addEventListener("change", () => {
+      const value = parseInt(lightModeThresholdInput.value, 10);
+      if (!isNaN(value) && value > 0) {
+        lightModeThreshold = value;
+        saveState();
+      } else {
+        alert("Please enter a valid number greater than 0.");
+      }
+    });
+
+    // Event listeners for buttons
+    startStopButton.addEventListener("click", toggleTimer);
+    resetButton.addEventListener("click", resetTimer);
+
+    // Initialize the stopwatch
+    loadState();
+
+    let wakeLock = null;
+
+    // Request wake lock to prevent screen from turning off
+    async function requestWakeLock() {
+        if ('wakeLock' in navigator) {
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Wake Lock is active.');
+            } catch (err) {
+                console.error('Wake Lock request failed:', err);
             }
-            noSleep.enable();
-            console.log('NoSleep enabled');
+        } else {
+            console.warn('Wake Lock API is not supported in this browser.');
         }
+    }
 
-        function disableNoSleep() {
-            if (noSleep) {
-                noSleep.disable();
-                noSleep = null;
-            }
-            console.log('NoSleep disabled');
-        }
-
-        function addDigit(digit) {
-            if (timerEnded || isRunning) return;
-            input = (input + digit).slice(-6); // 最大6桁
-            updateDisplay();
-        }
-
-        function updateDisplay() {
-            if (input.length === 0) {
-                document.getElementById('display').textContent = '00:00';
-                timerSeconds = 0;
-                return;
-            }
-            let seconds = parseInt(input.slice(-2)) || 0;
-            let minutes = parseInt(input.slice(0, -2)) || 0;
-            timerSeconds = minutes * 60 + seconds;
-            document.getElementById('display').textContent = 
-                `${String(Math.floor(timerSeconds / 60)).padStart(2, '0')}:${String(timerSeconds % 60).padStart(2, '0')}`;
-            console.log(`Input: ${input}, TimerSeconds: ${timerSeconds}`);
-        }
-
-        function startPauseTimer() {
-            console.log(`startPauseTimer called, isRunning: ${isRunning}, timerEnded: ${timerEnded}, timerSeconds: ${timerSeconds}`);
-            if (timerEnded) return;
-            if (!isRunning) {
-                if (timerSeconds === 0) {
-                    console.log('Timer is 0, cannot start');
-                    return;
-                }
-                isRunning = true;
-                isPaused = false;
-                document.getElementById('startPause').textContent = 'Pause';
-                enableNoSleep();
-                startTimer();
-            } else {
-                isPaused = !isPaused;
-                document.getElementById('startPause').textContent = isPaused ? 'Resume' : 'Pause';
-                if (isPaused) {
-                    clearInterval(timerInterval);
-                    clearInterval(stopwatchInterval);
-                    disableNoSleep();
-                    console.log('Timer paused');
-                } else {
-                    startTimer();
-                    if (timerEnded) startStopwatch();
-                    enableNoSleep();
-                    console.log('Timer resumed');
-                }
+    // Release wake lock
+    async function releaseWakeLock() {
+        if (wakeLock) {
+            try {
+                await wakeLock.release();
+                wakeLock = null;
+                console.log('Wake Lock is released.');
+            } catch (err) {
+                console.error('Failed to release Wake Lock:', err);
             }
         }
+    }
 
-        function startTimer() {
-            console.log('startTimer called');
-            clearInterval(timerInterval); // 既存のインターバルをクリア
-            timerInterval = setInterval(() => {
-                if (!isPaused && timerSeconds > 0) {
-                    timerSeconds--;
-                    document.getElementById('display').textContent = 
-                        `${String(Math.floor(timerSeconds / 60)).padStart(2, '0')}:${String(timerSeconds % 60).padStart(2, '0')}`;
-                    console.log(`Timer tick, seconds left: ${timerSeconds}`);
-                    if (timerSeconds <= 0) {
-                        clearInterval(timerInterval);
-                        timerEnded = true;
-                        document.body.classList.add('light-mode');
-                        document.getElementById('stopwatch').style.display = 'block';
-                        startStopwatch();
-                        console.log('Timer ended, starting stopwatch');
-                    }
-                }
-            }, 1000);
-        }
-
-        function startStopwatch() {
-            console.log('startStopwatch called');
-            clearInterval(stopwatchInterval); // 既存のインターバルをクリア
-            stopwatchInterval = setInterval(() => {
-                if (!isPaused) {
-                    stopwatchSeconds++;
-                    document.getElementById('stopwatch').textContent = 
-                        `${String(Math.floor(stopwatchSeconds / 60)).padStart(2, '0')}:${String(stopwatchSeconds % 60).padStart(2, '0')}`;
-                    console.log(`Stopwatch tick, seconds: ${stopwatchSeconds}`);
-                }
-            }, 1000);
-        }
-
-        function resetTimer() {
-            console.log('resetTimer called');
-            clearInterval(timerInterval);
-            clearInterval(stopwatchInterval);
-            disableNoSleep();
-            input = '';
-            timerSeconds = 0;
-            stopwatchSeconds = 0;
+    // Update toggleTimer to handle wake lock
+    function toggleTimer() {
+        if (isRunning) {
             isRunning = false;
-            isPaused = false;
-            timerEnded = false;
-            document.getElementById('startPause').textContent = 'Start';
-            document.getElementById('display').textContent = '00:00';
-            document.getElementById('stopwatch').textContent = '00:00';
-            document.getElementById('stopwatch').style.display = 'none';
-            document.getElementById('total-time').style.display = 'none';
-            document.body.classList.remove('light-mode');
+            elapsedMilliseconds += Date.now() - startTime;
+            saveState();
+            releaseWakeLock(); // Release wake lock when stopping
+        } else {
+            startTime = Date.now();
+            isRunning = true;
+            requestWakeLock(); // Request wake lock when starting
+            requestAnimationFrame(updateTimer);
         }
+        startStopButton.textContent = isRunning ? "Stop" : "Start";
+    }
 
-        function calculateTotal() {
-            if (!timerEnded) return;
-            let totalSeconds = stopwatchSeconds;
-            document.getElementById('total-time').textContent = 
-                `Total: ${String(Math.floor(totalSeconds / 60)).padStart(2, '0')}:${String(totalSeconds % 60).padStart(2, '0')}`;
-            document.getElementById('total-time').style.display = 'block';
-            console.log(`Total time calculated: ${totalSeconds} seconds`);
+    // Call releaseWakeLock on page visibility change
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && wakeLock) {
+            releaseWakeLock();
         }
-
-        // NoSleep.jsのスクリプトを動的に読み込む
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/no-sleep/0.1.1/no-sleep.min.js';
-        document.head.appendChild(script);
-    </script>
+    });
+  </script>
 </body>
 </html>
