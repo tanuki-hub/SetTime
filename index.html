@@ -82,10 +82,12 @@
     let overStart = 0;
     let overElapsedStored = 0;
     let timerRunning = false;
+    let timerPaused = false;
     let stopwatchRunning = false;
     let stopwatchActive = false;
     let overInterval;
     let countdownInterval;
+    let lastTimerTimestamp = 0;
 
     function appendDigit(d) {
       input += d;
@@ -110,20 +112,15 @@
     }
 
     function startPause() {
-      if (!timerRunning && !stopwatchRunning && timerRemaining > 0) {
-        timerRunning = true;
-        const end = Date.now() + timerRemaining * 1000;
-        countdownInterval = setInterval(() => {
-          const remaining = Math.max(0, Math.floor((end - Date.now()) / 1000));
-          timerRemaining = remaining;
-          updateSumDisplay();
-          if (remaining <= 0) {
-            clearInterval(countdownInterval);
-            timerRunning = false;
-            startStopwatch();
-          }
-        }, 250);
-      } else if (stopwatchActive) {
+      if (!stopwatchActive) {
+        if (!timerRunning && !timerPaused && timerRemaining > 0) {
+          startTimer();
+        } else if (timerRunning) {
+          pauseTimer();
+        } else if (timerPaused) {
+          resumeTimer();
+        }
+      } else {
         if (stopwatchRunning) {
           stopwatchRunning = false;
           overElapsedStored += Math.floor((Date.now() - overStart) / 1000);
@@ -134,6 +131,52 @@
           overInterval = setInterval(updateSumDisplay, 250);
         }
       }
+    }
+
+    function startTimer() {
+      timerRunning = true;
+      timerPaused = false;
+      lastTimerTimestamp = Date.now();
+      countdownInterval = setInterval(() => {
+        const now = Date.now();
+        const elapsed = Math.floor((now - lastTimerTimestamp) / 1000);
+        if (elapsed > 0) {
+          timerRemaining = Math.max(0, timerRemaining - elapsed);
+          lastTimerTimestamp = now;
+          updateSumDisplay();
+          if (timerRemaining <= 0) {
+            clearInterval(countdownInterval);
+            timerRunning = false;
+            startStopwatch();
+          }
+        }
+      }, 250);
+    }
+
+    function pauseTimer() {
+      timerRunning = false;
+      timerPaused = true;
+      clearInterval(countdownInterval);
+    }
+
+    function resumeTimer() {
+      timerRunning = true;
+      timerPaused = false;
+      lastTimerTimestamp = Date.now();
+      countdownInterval = setInterval(() => {
+        const now = Date.now();
+        const elapsed = Math.floor((now - lastTimerTimestamp) / 1000);
+        if (elapsed > 0) {
+          timerRemaining = Math.max(0, timerRemaining - elapsed);
+          lastTimerTimestamp = now;
+          updateSumDisplay();
+          if (timerRemaining <= 0) {
+            clearInterval(countdownInterval);
+            timerRunning = false;
+            startStopwatch();
+          }
+        }
+      }, 250);
     }
 
     function startStopwatch() {
