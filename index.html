@@ -199,8 +199,11 @@
         overElapsed += Math.floor((Date.now() - overStart) / 1000);
       }
 
-      const inputMin = Math.floor(timerRemaining / 60);
-      const inputSec = timerRemaining % 60;
+      // 【修正箇所】ストップウォッチが動いている時は元のセット時間(timerTotal)を、
+      // タイマー動作中は残り時間(timerRemaining)を基準に計算します
+      const displaySeconds = stopwatchActive ? timerTotal : timerRemaining;
+      const inputMin = Math.floor(displaySeconds / 60);
+      const inputSec = displaySeconds % 60;
 
       const overMin = Math.floor(overElapsed / 60);
       const overSec = overElapsed % 60;
